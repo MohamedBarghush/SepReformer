@@ -10,6 +10,8 @@ from utils import util_engine, functions
 from utils.decorators import *
 from torch.utils.tensorboard import SummaryWriter
 
+from .template_matcher import SepFormerWithTemplateMatching
+
 
 @logger_wraps()
 class Engine(object):
@@ -149,11 +151,15 @@ class Engine(object):
         return total_loss_SISNRi/num_batch, total_loss_SDRi/num_batch, num_batch
 
     @logger_wraps()
-    def _inference_sample(self, sample):
+    def _inference_sample(self, sample, reference_sample=None):
         self.model.eval()
         self.fs = self.config["dataset"]["sampling_rate"]
-        mixture, _ = librosa.load(sample,sr=self.fs)
+        
+        # Load mixture audio
+        mixture, _ = librosa.load(sample, sr=self.fs)
         mixture = torch.tensor(mixture, dtype=torch.float32)[None]
+        
+        # Handle padding
         self.stride = self.config["model"]["module_audio_enc"]["stride"]
         remains = mixture.shape[-1] % self.stride
         if remains != 0:
@@ -164,12 +170,38 @@ class Engine(object):
 
         with torch.inference_mode():
             nnet_input = mixture_padded.to(self.device)
+            
+            # Get separated sources from original model
             estim_src, _ = torch.nn.parallel.data_parallel(self.model, nnet_input, device_ids=self.gpuid)
-            mixture = torch.squeeze(mixture).cpu().numpy()
-            sf.write(sample[:-4]+'_in.wav', 0.9*mixture/max(abs(mixture)), self.fs)
-            for i in range(self.config['model']['num_spks']):
-                src = torch.squeeze(estim_src[i][...,:mixture.shape[-1]]).cpu().data.numpy()
-                sf.write(sample[:-4]+'_out_'+str(i)+'.wav', 0.9*src/max(abs(src)), self.fs)
+            
+            # Save original mixture
+            mixture_clean = torch.squeeze(mixture).cpu().numpy()
+            sf.write(sample[:-4]+'_mixture.wav', 0.9*mixture_clean/max(abs(mixture_clean)), self.fs)
+
+            # Template matching if reference provided
+            if reference_sample is not None:
+                # Load reference audio
+                reference, _ = librosa.load(reference_sample, sr=self.fs)
+                reference = torch.tensor(reference, dtype=torch.float32)[None].to(self.device)
+                
+                # Initialize template matcher
+                template_matcher = SepFormerWithTemplateMatching(self.model, self.device)
+                
+                # Select best matching source
+                matched_audio = template_matcher.match_template(
+                    separated_sources=estim_src,
+                    reference_audio=reference
+                )
+                
+                # Save matched audio
+                src = torch.squeeze(matched_audio[..., :mixture.shape[-1]]).cpu().numpy()
+                sf.write(sample[:-4]+'_matched.wav', 0.9*src/max(abs(src)), self.fs)
+                
+            else:
+                # Save all separated sources (original behavior)
+                for i in range(self.config['model']['num_spks']):
+                    src = torch.squeeze(estim_src[i][..., :mixture.shape[-1]]).cpu().numpy()
+                    sf.write(sample[:-4]+'_out_'+str(i)+'.wav', 0.9*src/max(abs(src)), self.fs)
 
     
     @logger_wraps()
