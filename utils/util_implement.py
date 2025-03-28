@@ -32,7 +32,7 @@ class BaseFactory:
         return [instance_creator(self.load_class(category, lib_check, name), name) for name in self.config["name"]]
 
 
-@logger_wraps()
+# @logger_wraps()
 @dataclass(slots=True)
 class CriterionFactory(BaseFactory):
     device: torch.device
@@ -41,7 +41,7 @@ class CriterionFactory(BaseFactory):
         return self.get_instances("criterions", torch.nn, lambda cls, name: self.create_instance(cls, name, self.device))
 
 
-@logger_wraps()
+# @logger_wraps()
 @dataclass(slots=True)
 class OptimizerFactory(BaseFactory):
     parameters_policy: Any
@@ -50,7 +50,7 @@ class OptimizerFactory(BaseFactory):
         return self.get_instances("optimizers", torch.optim, lambda cls, name: self.create_instance(cls, name, self.parameters_policy))
 
 
-@logger_wraps()
+# @logger_wraps()
 @dataclass(slots=True)
 class SchedulerFactory(BaseFactory):
     optimizers: List[Any]

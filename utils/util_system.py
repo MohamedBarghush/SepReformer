@@ -7,7 +7,7 @@ from loguru import logger
 from utils.decorators import *
 
 
-@logger_wraps()
+# @logger_wraps()
 def parse_yaml(path):
     """
     Parse and return the contents of a YAML file.

@@ -17,7 +17,7 @@ from .template_matcher import SepFormerWithTemplateMatching
 from asteroid.metrics import get_metrics
 
 
-@logger_wraps()
+# @logger_wraps()
 class Engine(object):
     def __init__(self, args, config, model, dataloaders, criterions, optimizers, schedulers, gpuid, device):
         
@@ -52,7 +52,7 @@ class Engine(object):
         
         logger.info(f"Clip gradient by 2-norm {self.config['engine']['clip_norm']}")
     
-    @logger_wraps()
+    # @logger_wraps()
     def _train(self, dataloader, epoch):
         self.model.train()
         tot_loss_freq = [0 for _ in range(self.model.num_stages)]
@@ -88,7 +88,7 @@ class Engine(object):
         tot_loss_freq = sum(tot_loss_freq) / len(tot_loss_freq)
         return tot_loss_time / num_batch, tot_loss_freq / num_batch, num_batch
     
-    @logger_wraps()
+    # @logger_wraps()
     def _validate(self, dataloader):
         self.model.eval()
         tot_loss_freq = [0 for _ in range(self.model.num_stages)]
@@ -115,7 +115,7 @@ class Engine(object):
         tot_loss_freq = sum(tot_loss_freq) / len(tot_loss_freq)
         return tot_loss_time / num_batch, tot_loss_freq / num_batch, num_batch
     
-    @logger_wraps()
+    # @logger_wraps()
     def _test(self, dataloader, wav_dir=None):
         self.model.eval()
         total_loss_SISNRi, total_loss_SDRi, num_batch = 0, 0, 0
@@ -226,7 +226,7 @@ class Engine(object):
             print(f"Error computing metrics: {str(e)}")
             return None
 
-    @logger_wraps()
+    # @logger_wraps()
     def _inference_sample(self, sample, reference_sample=None, source_sample=None):
         self.model.eval()
         self.fs = self.config["dataset"]["sampling_rate"]
@@ -320,7 +320,7 @@ class Engine(object):
                 print(f"Metrics computation failed for sample {sample}.")
 
     
-    @logger_wraps()
+    # @logger_wraps()
     def run(self):
         with torch.cuda.device(self.device):
             writer_src = SummaryWriter(os.path.join(os.path.dirname(os.path.abspath(__file__)), "log/tensorboard"))

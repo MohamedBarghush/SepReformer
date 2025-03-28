@@ -64,7 +64,7 @@ class STFTBase(torch.nn.Module):
         return (f"window={self.window}, stride={self.frame_shift}, " +
                 f"kernel_size={self.K.shape[0]}x{self.K.shape[2]}")
 
-@logger_wraps()
+# @logger_wraps()
 @dataclass(slots=True)
 class STFT(STFTBase):
     """
@@ -112,7 +112,7 @@ class STFT(STFTBase):
         p = torch.atan2(i, r)
         return m, p
 
-@logger_wraps()
+# @logger_wraps()
 @dataclass(slots=True)
 class PIT_SISNR_mag:
     device: torch.device
@@ -175,7 +175,7 @@ class PIT_SISNR_mag:
         num_utts = input_sizes.shape[0]
         return torch.sum(min_perutt) / num_utts
 
-@logger_wraps()
+# @logger_wraps()
 @dataclass(slots=True)
 class PIT_SISNR_time:
     device: torch.device
@@ -216,7 +216,7 @@ class PIT_SISNR_time:
         num_utts = input_sizes.shape[0]
         return torch.sum(min_perutt) / num_utts
 
-@logger_wraps()
+# @logger_wraps()
 @dataclass(slots=True)
 class PIT_SISNRi:
     device: torch.device
@@ -259,7 +259,7 @@ class PIT_SISNRi:
         num_utts = input_sizes.shape[0]
         return torch.sum(min_perutt) / num_utts, pscore[min_idx]
 
-@logger_wraps()
+# @logger_wraps()
 @dataclass(slots=True)
 class PIT_SDRi:
     device: torch.device

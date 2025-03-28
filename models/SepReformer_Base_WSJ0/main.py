@@ -11,7 +11,7 @@ from utils.decorators import *
 log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "log/system_log.log")
 logger.add(log_file_path, level="DEBUG", mode="w")
 
-@logger_wraps()
+# @logger_wraps()
 def main(args):
     
     ''' Build Setting '''

@@ -8,7 +8,7 @@ from loguru import logger
 from utils.decorators import *
 
 
-@logger_wraps()
+# @logger_wraps()
 @dataclass(slots=False)
 class WarmupConstantSchedule(torch.optim.lr_scheduler.LambdaLR):
     optimizer: torch.optim.Optimizer

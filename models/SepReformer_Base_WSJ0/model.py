@@ -9,7 +9,7 @@ from utils.decorators import *
 from .modules.module import *
 
 
-@logger_wraps()
+# @logger_wraps()
 class Model(torch.nn.Module):
     def __init__(self, 
                  num_stages: int, 
