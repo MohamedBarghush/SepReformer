@@ -4,6 +4,8 @@ import csv
 import time
 import soundfile as sf
 import librosa
+import numpy as np
+import pandas as pd
 from loguru import logger
 from tqdm import tqdm
 from utils import util_engine, functions
@@ -11,6 +13,8 @@ from utils.decorators import *
 from torch.utils.tensorboard import SummaryWriter
 
 from .template_matcher import SepFormerWithTemplateMatching
+
+from asteroid.metrics import get_metrics
 
 
 @logger_wraps()
@@ -149,9 +153,81 @@ class Engine(object):
                     pbar.set_postfix(dict_loss)
         pbar.close()
         return total_loss_SISNRi/num_batch, total_loss_SDRi/num_batch, num_batch
+    
+    # Helper functions for audio processing
+    def normalize_audio(self, audio):
+        """Normalize audio to have unit energy with safety checks"""
+        audio = audio - np.mean(audio)
+        energy = np.sum(audio**2)
+        if energy > 0:
+            scale = np.sqrt(energy / len(audio))
+            return audio / (scale + 1e-10)
+        return audio
+
+    def pad_to_length(self, audio, target_length):
+        """Pad audio to target length"""
+        if len(audio) < target_length:
+            return np.pad(audio, (0, target_length - len(audio)))
+        return audio[:target_length]
+
+    def compute_metrics_safely(self, mixture, source, estimate, sample_rate):
+        """Compute metrics with safety checks and improvement metrics"""
+        try:
+            if not (np.all(np.isfinite(mixture)) and 
+                    np.all(np.isfinite(source)) and 
+                    np.all(np.isfinite(estimate))):
+                print("Warning: Non-finite values detected in audio")
+                return None
+
+            if np.all(mixture == 0) or np.all(source == 0) or np.all(estimate == 0):
+                print("Warning: Zero signal detected")
+                return None
+
+            # Compute metrics for the estimate
+            est_metrics = get_metrics(
+                mixture,
+                source[None, :],  # Add speaker dimension
+                estimate[None, :], 
+                sample_rate=sample_rate,
+                metrics_list=["si_sdr", "sdr", "sir", "sar", "stoi"],
+                ignore_metrics_errors=True
+            )
+
+            # Compute metrics for the mixture (baseline)
+            mix_metrics = get_metrics(
+                mixture,
+                source[None, :],
+                mixture[None, :],  # Mixture as estimate
+                sample_rate=sample_rate,
+                metrics_list=["si_sdr", "sdr"],
+                ignore_metrics_errors=True
+            )
+
+            # Calculate improvement metrics
+            improvements = {}
+            for metric in ["si_sdr", "sdr"]:
+                est_val = est_metrics.get(metric)
+                mix_val = mix_metrics.get(metric)
+                if est_val is not None and mix_val is not None:
+                    improvements[f"{metric}i"] = est_val - mix_val
+                else:
+                    improvements[f"{metric}i"] = None
+
+            # Merge metrics
+            merged_metrics = {**est_metrics, **improvements}
+
+            # Check for non-finite values
+            for key in merged_metrics:
+                if not np.isfinite(merged_metrics[key]):
+                    merged_metrics[key] = None
+            
+            return merged_metrics
+        except Exception as e:
+            print(f"Error computing metrics: {str(e)}")
+            return None
 
     @logger_wraps()
-    def _inference_sample(self, sample, reference_sample=None):
+    def _inference_sample(self, sample, reference_sample=None, source_sample=None):
         self.model.eval()
         self.fs = self.config["dataset"]["sampling_rate"]
         
@@ -195,6 +271,7 @@ class Engine(object):
                 
                 # Save matched audio
                 src = torch.squeeze(matched_audio[..., :mixture.shape[-1]]).cpu().numpy()
+                
                 sf.write(sample[:-4]+'_matched.wav', 0.9*src/max(abs(src)), self.fs)
                 
             else:
@@ -202,6 +279,45 @@ class Engine(object):
                 for i in range(self.config['model']['num_spks']):
                     src = torch.squeeze(estim_src[i][..., :mixture.shape[-1]]).cpu().numpy()
                     sf.write(sample[:-4]+'_out_'+str(i)+'.wav', 0.9*src/max(abs(src)), self.fs)
+
+            # If a source input audio is provided, load it and compute metrics
+        if source_sample is not None:
+            # Load source audio (ground truth)
+            mixture, _ = librosa.load(sample, sr=self.fs)
+            source, _ = librosa.load(source_sample, sr=self.fs)
+            
+            # Normalize the audio signals using your helper functions
+            mixture_np = self.normalize_audio(mixture)
+            source_np = self.normalize_audio(source)
+            estimate_audio_norm = self.normalize_audio(src)
+            
+            # Ensure all signals are the same length (pad or trim as needed)
+            # max_len = max(len(mixture_np), len(source_np), len(estimate_audio_norm))
+            # mixture_np = self.pad_to_length(mixture_np, max_len)
+            source_np = self.pad_to_length(source_np, len(mixture_np))
+            estimate_audio_norm = self.pad_to_length(estimate_audio_norm, len(mixture_np))
+            
+            # Compute metrics using the safe function provided
+            metrics = self.compute_metrics_safely(mixture_np, source_np, estimate_audio_norm, self.fs)
+            if metrics is not None:
+                # Add filename info to metrics
+                metrics["filename"] = sample
+                
+                # Append metrics to CSV file
+                csv_file = "metrics.csv"
+                try:
+                    if not os.path.exists(csv_file):
+                        pd.DataFrame([metrics]).to_csv(csv_file, index=False)
+                    else:
+                        df_existing = pd.read_csv(csv_file)
+                        df_new = pd.DataFrame([metrics])
+                        df_all = pd.concat([df_existing, df_new], ignore_index=True)
+                        df_all.to_csv(csv_file, index=False)
+                    print(f"Metrics for sample {sample} appended to {csv_file}.")
+                except Exception as e:
+                    print(f"Error writing metrics to CSV: {e}")
+            else:
+                print(f"Metrics computation failed for sample {sample}.")
 
     
     @logger_wraps()

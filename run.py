@@ -25,6 +25,16 @@ parser.add_argument(
     type=str,
     default=None,
     help="This option is used to specficy save directory for output wav file in test_wav mode")
+parser.add_argument(
+    "--ref",
+    type=str,
+    default=None,
+    help="This option is used to specficy reference wav file in infer_sample mode")
+parser.add_argument(
+    "--src-sample",
+    type=str,
+    default=None,
+    help="This option is used to specficy source wav file in infer_sample mode")
 args = parser.parse_args()
 
 # Call target model

@@ -42,6 +42,6 @@ def main(args):
     # Call & Run Engine
     engine = Engine(args, config, model, dataloaders, criterions, optimizers, schedulers, gpuid, device)
     if args.engine_mode == 'infer_sample':
-        engine._inference_sample(args.sample_file, reference_sample="SepReformer/sample_wav/sample_reference.wav")
+        engine._inference_sample(args.sample_file, reference_sample=args.ref, source_sample=args.src_sample)
     else:
         engine.run()

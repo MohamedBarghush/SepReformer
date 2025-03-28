@@ -1,6 +1,6 @@
 import torch
-from speechbrain.pretrained import EncoderClassifier
 
+from speechbrain.pretrained import EncoderClassifier
 class SepFormerWithTemplateMatching:
     def __init__(self, original_model, device='cuda'):
         self.model = original_model
