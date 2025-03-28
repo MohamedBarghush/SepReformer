@@ -175,8 +175,8 @@ class Engine(object):
             estim_src, _ = torch.nn.parallel.data_parallel(self.model, nnet_input, device_ids=self.gpuid)
             
             # Save original mixture
-            mixture_clean = torch.squeeze(mixture).cpu().numpy()
-            sf.write(sample[:-4]+'_mixture.wav', 0.9*mixture_clean/max(abs(mixture_clean)), self.fs)
+            # mixture_clean = torch.squeeze(mixture).cpu().numpy()
+            # sf.write(sample[:-4]+'_mixture.wav', 0.9*mixture_clean/max(abs(mixture_clean)), self.fs)
 
             # Template matching if reference provided
             if reference_sample is not None:
