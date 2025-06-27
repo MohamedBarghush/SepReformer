@@ -272,7 +272,8 @@ class Engine(object):
                 # Save matched audio
                 src = torch.squeeze(matched_audio[..., :mixture.shape[-1]]).cpu().numpy()
                 
-                sf.write(sample[:-4]+'_matched.wav', 0.9*src/max(abs(src)), self.fs)
+                filename = os.path.splitext(os.path.basename(sample))[0] + '_matched.wav'
+                sf.write(os.path.join("outputs",filename), 0.9*src/max(abs(src)), self.fs)
                 
             else:
                 # Save all separated sources (original behavior)
